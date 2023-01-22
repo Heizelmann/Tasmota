@@ -14,8 +14,8 @@
  * I2C Address: 0x28 .. 0x2B
 \*********************************************************************************************/
 
-#define XDRV_61                  61
-#define XI2C_67                  67  // See I2CDEVICES.md
+#define XDRV_128                  61
+#define XI2C_128                  67  // See I2CDEVICES.md
 
 #define USE_DS3502_ADDR          0x28
 

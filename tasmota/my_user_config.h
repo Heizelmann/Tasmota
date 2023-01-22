@@ -438,7 +438,7 @@
 #define MQTT_DISABLE_SSERIALRECEIVED 0           // 1 = Disable sserialreceived mqtt messages, 0 = Enable sserialreceived mqtt messages (default)
 
 // -- MQTT - Domoticz -----------------------------
-#define USE_DOMOTICZ                             // Enable Domoticz (+6k code, +0.3k mem)
+//#define USE_DOMOTICZ                             // Enable Domoticz (+6k code, +0.3k mem)
   #define DOMOTICZ_IN_TOPIC    "domoticz/in"     // Domoticz Input Topic
   #define DOMOTICZ_OUT_TOPIC   "domoticz/out"    // Domoticz Output Topic
 
@@ -474,11 +474,11 @@
 
 // -- Telegram Protocol ---------------------------
 //#define USE_TELEGRAM                             // Support for Telegram protocol (+49k code, +7.0k mem and +4.8k additional during connection handshake)
-  #define USE_TELEGRAM_FINGERPRINT "\xB2\x72\x47\xA6\x69\x8C\x3C\x69\xF9\x58\x6C\xF3\x60\x02\xFB\x83\xFA\x8B\x1F\x23" // Telegram api.telegram.org TLS public key fingerpring
+//  #define USE_TELEGRAM_FINGERPRINT "\xB2\x72\x47\xA6\x69\x8C\x3C\x69\xF9\x58\x6C\xF3\x60\x02\xFB\x83\xFA\x8B\x1F\x23" // Telegram api.telegram.org TLS public key fingerpring
 
 // -- KNX IP Protocol -----------------------------
 //#define USE_KNX                                  // Enable KNX IP Protocol Support (+9.4k code, +3k7 mem)
-  #define USE_KNX_WEB_MENU                       // Enable KNX WEB MENU (+8.3k code, +144 mem)
+//  #define USE_KNX_WEB_MENU                       // Enable KNX WEB MENU (+8.3k code, +144 mem)
 
 // -- HTTP ----------------------------------------
 #define USE_WEBSERVER                            // Enable web server and Wi-Fi Manager (+66k code, +8k mem)
@@ -493,8 +493,8 @@
   // #define USE_CCLOADER                           // Enable CCLoader FW upgrade tool (for CC25xx devices)
 
 // -- mDNS ----------------------------------------
-//#define USE_DISCOVERY                            // Enable mDNS for the following services (+8k code or +23.5k code with core 2_5_x, +0.3k mem)
-  #define WEBSERVER_ADVERTISE                    // Provide access to webserver by name <Hostname>.local/
+#define USE_DISCOVERY                            // Enable mDNS for the following services (+8k code or +23.5k code with core 2_5_x, +0.3k mem)
+//  #define WEBSERVER_ADVERTISE                    // Provide access to webserver by name <Hostname>.local/
   // #define MQTT_HOST_DISCOVERY                    // Find MQTT host server (overrides MQTT_HOST if found) - disabled by default because it causes blocked repeated 3000ms pauses
 
 // -- Time ----------------------------------------
@@ -507,11 +507,11 @@
 //  #define USE_PING                                 // Enable Ping command (+2k code)
 
 // -- Compression ---------------------------------
-#define USE_UNISHOX_COMPRESSION                  // Add support for string compression in Rules or Scripts
+//#define USE_UNISHOX_COMPRESSION                  // Add support for string compression in Rules or Scripts
 
 // -- Rules or Script  ----------------------------
 // Select none or only one of the below defines USE_RULES or USE_SCRIPT
-#define USE_RULES                                // Add support for rules (+8k code)
+// HEIZELMANN #define USE_RULES                                // Add support for rules (+8k code)
 //  #define USE_EXPRESSION                         // Add support for expression evaluation in rules (+3k2 code, +64 bytes mem)
 //    #define SUPPORT_IF_STATEMENT                 // Add support for IF statement in rules (+4k2 code, -332 bytes mem)
 //  #define USER_RULE1 "<Any rule1 data>"          // Add rule1 data saved at initial firmware load or when command reset is executed
@@ -524,6 +524,7 @@
 
 //#define USER_BACKLOG "<Any command separated by a semicolon (;)>"  // Add commands executed at firmware load or when command reset is executed
 
+/* Heizelmann
 // -- Optional modules ----------------------------
 #define ROTARY_V1                                // Add support for Rotary Encoder as used in MI Desk Lamp (+0k8 code)
   #define ROTARY_MAX_STEPS     10                // Rotary step boundary
@@ -581,7 +582,7 @@
 
 // #define USE_LIGHT_ARTNET                         // Add support for DMX/ArtNet via UDP on port 6454 (+3.5k code)
   #define USE_LIGHT_ARTNET_MCAST 239,255,25,54   // Multicast address used to listen: 239.255.25.24
-
+*/
 // -- Counter input -------------------------------
 #define USE_COUNTER                              // Enable inputs as counter (+0k8 code)
 
@@ -650,7 +651,7 @@
 //  #define USE_SCD40                              // [I2cDriver62] Enable Sensiron SCd40/Scd41 CO2 sensor (I2C address 0x62) (+3k5 code)
 //  #define USE_SPS30                              // [I2cDriver30] Enable Sensiron SPS30 particle sensor (I2C address 0x69) (+1.7 code)
 //  #define USE_ADE7880                            // [I2cDriver65] Enable ADE7880 Energy monitor as used on Shelly 3EM (I2C address 0x38) (+3k8)
-  #define USE_ADE7953                            // [I2cDriver7] Enable ADE7953 Energy monitor as used on Shelly 2.5 (I2C address 0x38) (+1k5)
+// Heizelmann  #define USE_ADE7953                            // [I2cDriver7] Enable ADE7953 Energy monitor as used on Shelly 2.5 (I2C address 0x38) (+1k5)
 //  #define USE_VL53L0X                            // [I2cDriver31] Enable VL53L0x time of flight sensor (I2C address 0x29) (+4k code)
 //    #define VL53L0X_XSHUT_ADDRESS 0x78           //   VL53L0X base address when used with XSHUT control
 //  #define USE_VL53L1X                            // [I2cDriver54] Enable VL53L1X time of flight sensor (I2C address 0x29) using Pololu VL53L1X library (+2k9 code)
@@ -705,7 +706,8 @@
 //    #define HM330X_WARMUP_DELAY       30         // Option: change warmup delay during which data are not read from sensor after a power up
 //    #define HM330X_HIDE_OUT_OF_DATE   false      // Option: change to true to hide data from web GUI and SENSOR while sensor is asleep
 //  #define USE_HDC2010                            // [I2cDriver64] Enable HDC2010 temperature/humidity sensor (I2C address 0x40) (+1k5 code)
-  #define USE_DS3502                             // [I2CDriver67] Enable DS3502 digital potentiometer (I2C address 0x28 - 0x2B) (+0k4 code)
+//#define USE_DS3502                                 // [I2CDriver67] Enable DS3502 digital potentiometer (I2C address 0x28 - 0x2B) (+0k4 code)
+#define USE_MCP47X6                                 // [I2CDriver67] Enable MCP47x6 PCM device (I2C address 0x30 )
 //  #define USE_HYT                                // [I2CDriver68] Enable HYTxxx temperature and humidity sensor (I2C address 0x28) (+0k5 code)
 //  #define USE_LUXV30B                            // [I2CDriver70] Enable RFRobot SEN0390 LuxV30b ambient light sensor (I2C address 0x4A) (+0k5 code)
 //  #define USE_QMC5883L                           // [I2CDriver71] Enable QMC5883L magnetic induction sensor (I2C address 0x0D) (+0k8 code)

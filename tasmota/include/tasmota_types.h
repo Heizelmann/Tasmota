@@ -675,6 +675,7 @@ typedef struct {
   uint8_t       global_sensor_index[3];    // 4C5
   uint16_t      dns_timeout;               // 4C8
   uint8_t       ds3502_state[MAX_DS3502];  // 4CA
+  uint16_t      mcp47x6_state;             // F38 Heizelmann
   uint16_t      influxdb_port;             // 4CE
   power_t       interlock[MAX_INTERLOCKS_SET];  // 4D0 MAX_INTERLOCKS = MAX_RELAYS / 2
   int8_t        shutter_tilt_config[5][MAX_SHUTTERS];  //508
@@ -868,7 +869,8 @@ typedef struct {
   uint32_t      i2c_drivers[3];            // FEC  I2cDriver
   uint32_t      cfg_timestamp;             // FF8
   uint32_t      cfg_crc32;                 // FFC
-} TSettings;
+ } TSettings;
+
 
 static_assert(sizeof(TSettings) == 4096, "TSettings Size is not correct");
 
