@@ -97,6 +97,7 @@ void MCP47X6::setVReference(uint8_t vref) {
 bool MCP47X6::saveSettings(void) {
   // read the current volatile settings
   // write the values back to DAC EEPROM
+  return false;
 }
 
 /******************************************
