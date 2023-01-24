@@ -27,6 +27,9 @@
 #ifndef MCP47X6_h
 #define MCP47X6_h
 
+#include "Arduino.h"
+#include <Wire.h>
+
 /*#ifdef ARDUINO
     #if ARDUINO < 100
         #include "WProgram.h"

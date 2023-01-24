@@ -24,10 +24,13 @@
 */
 /**************************************************************************/
 
-#ifndef _MCP47X6_H_
-#define _MCP47X6_H_
+#ifndef MCP47X6_h
+#define MCP47X6_h
 
-#ifdef ARDUINO
+#include "Arduino.h"
+#include <Wire.h>
+
+/*#ifdef ARDUINO
     #if ARDUINO < 100
         #include "WProgram.h"
     #else
@@ -38,7 +41,7 @@
 #endif
 
 #include <Wire.h>
-
+*/
 // I2C Address of device
 // MCP4706, MCP4716 & MCP4726 are factory programed for any of 0x60 thru 0x67
 //  commonly 0x60
@@ -105,4 +108,4 @@ class MCP47X6 {
         uint8_t config;
 };
 
-#endif /* _MCP47X6_H_ */
+#endif /* MCP47X6_h */

@@ -19,8 +19,8 @@
 
 #include  <Wire.h>
 
-//#include  "./MCP47X6/MCP47X6.h" //in Tasmota directory
-#include  "MCP47X6.h" //
+#include  "./MCP47X6/MCP47X6.h" //in Tasmota directory
+//#include  "MCP47X6.h" //
 MCP47X6 theDAC = MCP47X6(MCP47X6_DEFAULT_ADDRESS);
 
 void MCP47X6SetWiper(uint32_t idx) {
