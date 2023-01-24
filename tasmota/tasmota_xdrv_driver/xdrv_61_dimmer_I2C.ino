@@ -18,8 +18,6 @@
 #define XI2C_67                  67  // See I2CDEVICES.md
 
 #include  <Wire.h>
-#include "Adafruit_SGP40.h"
-Adafruit_SGP40 sgp40;
 
 //#include  "./MCP47X6/MCP47X6.h" //in Tasmota directory
 #include  "MCP47X6.h" //
