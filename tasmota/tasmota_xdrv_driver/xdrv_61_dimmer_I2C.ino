@@ -71,14 +71,16 @@ bool Xdrv61(uint32_t function) {
     case FUNC_COMMAND:
       result = DecodeCommand(kMCP47X6Commands, MCP47X6Command);
       break;
+    case FUNC_BUTTON_MULTI_PRESSED:
+       AddLog(LOG_LEVEL_INFO, PSTR("Multi Button pressed:%d"),XdrvMailbox.payload);       
+       result = true;
+       break;
     case FUNC_BUTTON_PRESSED:
-       // if (XdrvMailbox.index < MAX_SHUTTER_KEYS && Settings->shutter_button[XdrvMailbox.index] & (1<<31)) {
-       //   ShutterButtonHandler();
-          result = true;
-          AddLog(LOG_LEVEL_INFO, PSTR("Button pressed:%d"),XdrvMailbox.payload);
- 
-        
-      break;      
+        if (!XdrvMailbox.index && ((PRESSED == XdrvMailbox.payload) && (NOT_PRESSED == Button.last_state[XdrvMailbox.index]))) {
+           AddLog(LOG_LEVEL_INFO, PSTR("Button pressed:%d"),XdrvMailbox.payload);
+         }
+        result = true;
+      break;
   }
   return result;
 }
