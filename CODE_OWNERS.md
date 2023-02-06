@@ -87,6 +87,7 @@ In addition to @arendst the following code is mainly owned by:
 |                            |
 | xdrv_122_file_settings_demo | @arendst
 | xdrv_127_debug             | @arendst
+| xdrv_128_dimmer_I2C        | @heizelmann
 |                            |
 | Tasmota Sensors            |
 |                            |

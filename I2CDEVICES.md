@@ -111,3 +111,4 @@ Index | Define              | Driver   | Device   | Address(es) | Description
   73  | USE_HMC5883L        | xsns_101 | HMC5883L | 0x1E        | 3-channels Magnetic Field Sensor
   74  | USE_DISPLAY_TM1650  | xdsp_20  | TM1650   | 0x24 - 0x27, 0x34 - 0x37 | Four-digit seven-segment LED controller
   75  | USE_PCA9632         | xdrv_64  | PCA9632  | 0x60        | 4-channel 4-bit pwm driver
+ 128  | USE_MCP47X6         | xdrv_128 | DS3502   | 0x30        | Advanced Dimmer with 1-channel PWM driver 8,10,12-bit driver
