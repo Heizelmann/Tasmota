@@ -23,7 +23,7 @@ const char kMCP47X6Commands[] PROGMEM = "|"  // No Prefix
   "Regler" ;
 
 void (* const MCP47X6Command[])(void) PROGMEM = {
-  &CmndWiper };
+  &CmndRegler };
 
 struct SDIMMER {
   uint8_t currentLevel = 0;
@@ -34,8 +34,8 @@ struct SDIMMER {
 struct SDIMMER_SETTINGS {
   uint16_t dur1=10000;
   uint16_t dur2=10000;
-  uint16_t level1=3000; 
-  uint16_t level2=1600;
+  uint8_t level1=73; 
+  uint8_t level2=39;
  } SSettings;
 
 
@@ -43,7 +43,7 @@ struct SDIMMER_SETTINGS {
 
 MCP47X6 theDAC = MCP47X6(MCP47X6_DEFAULT_ADDRESS);
 
-void MCP47X6SetWiper(uint32_t idx) {
+void MCP47X6SetRegler(uint32_t idx) {
       AddLog(LOG_LEVEL_DEBUG, "HZ:Set Wiper %d", Settings->mcp47x6_state);
       theDAC.setOutputLevel(Settings->mcp47x6_state);
 }
@@ -59,20 +59,28 @@ bool MCP47X6Detect(void) {
 
 
 
-void CmndWiper(void) {
-  //Wiper<x> 0..4095
-      AddLog(LOG_LEVEL_INFO, "%s %d %d", XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
-  if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 4095)) {
+void CmndRegler(void) {
+  //Wiper<x> 0..100
+  AddLog(LOG_LEVEL_INFO, "%s %d %d", XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
+  if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
     Settings->mcp47x6_state = XdrvMailbox.payload;
-    MCP47X6SetWiper(0);
+    SDimmer.timerState = S_DIS;
+    DimmerSetValue(Settings->mcp47x6_state);
     ResponseCmndIdxNumber(Settings->mcp47x6_state);
   } 
 }
 
 void DimmerSetValue(uint16_t value){
-     theDAC.setOutputLevel(value);
-     AddLog(LOG_LEVEL_INFO, PSTR("changeDimmer");
-     light_controller.changeDimmer(value)):
+     theDAC.setOutputLevel((uint16_t)(value*40));
+     AddLog(LOG_LEVEL_INFO, PSTR("changeDimmer"));
+     light_controller.changeDimmer(value); 
+  
+  //XdrvMailbox.index = index;
+  //XdrvMailbox.payload = dimmer;
+  //CmndDimmer();
+
+  //LightAnimate();
+
 }
 
 void DimmerAnimate(){
@@ -102,31 +110,39 @@ void DimmerAnimate(){
 }
 
 void DimmerTrigger() {
-  DEBUG_PRINTLN("triggerLight");
-  switch (SDimmer.timerState) {
-    case S_OFF:
-      SDimmer.timerState = S_ON;
-      SDimmer.timer1 = millis();
-      AddLog(LOG_LEVEL_INFO, "On");
-      DimmerSetValue( SSettings.level1 );
-       break;
-    case S_ON: case S_DIS:
-      SDimmer.timerState = S_OFF;
-      AddLog(LOG_LEVEL_INFO, "Off");
-      DimmerSetValue(0);
-      break;
-    case S_DIM:
-      SDimmer.timerState = S_ON;
-      SDimmer.timer1 = millis();
-      AddLog(LOG_LEVEL_INFO, "Retrigger");
-      DimmerSetValue( SSettings.level1 );
-      break;
+  if(XdrvMailbox.payload >1){
+    SDimmer.timerState = S_DIS;
+    AddLog(LOG_LEVEL_INFO, "FixOn");
+    DimmerSetValue(100);
+    }
+  else{
+    switch (SDimmer.timerState) {
+      case S_OFF:
+        SDimmer.timerState = S_ON;
+        SDimmer.timer1 = millis();
+        AddLog(LOG_LEVEL_INFO, "On");
+        DimmerSetValue( SSettings.level1 );
+        break;
+      case S_ON: case S_DIS:
+        SDimmer.timerState = S_OFF;
+        AddLog(LOG_LEVEL_INFO, "Off");
+        DimmerSetValue(0);
+        break;
+      case S_DIM:
+        SDimmer.timerState = S_ON;
+        SDimmer.timer1 = millis();
+        AddLog(LOG_LEVEL_INFO, "Retrigger");
+        DimmerSetValue( SSettings.level1 );
+        break;
+    }
   }
 }
+
 
 void DimmerButtonPressed(){
       AddLog(LOG_LEVEL_INFO, PSTR("Multi Button pressed:%d"),XdrvMailbox.payload);       
       DimmerTrigger();
+      
 }
 
 /*********************************************************************************************\
@@ -150,7 +166,7 @@ bool Xdrv128(uint32_t function) {
     case FUNC_BUTTON_MULTI_PRESSED:
         DimmerButtonPressed();
         AddLog(LOG_LEVEL_INFO, PSTR("pwm_min:%d"),Light.pwm_min);
-        AddLog(LOG_LEVEL_INFO, PSTR("getBri:%d"),light_state.getBri());
+        //AddLog(LOG_LEVEL_INFO, PSTR("getBri:%d"),light_state.getBri());
         AddLog(LOG_LEVEL_INFO, PSTR("getDimmer:%d"),light_state.getDimmer(0));
         result = true;
        break;
