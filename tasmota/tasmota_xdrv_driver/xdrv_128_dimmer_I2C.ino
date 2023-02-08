@@ -86,11 +86,20 @@ void ADIRequestValue(uint16_t value){
 
 }
 
+bool ADISetChannels(void){
+    uint16_t brightness = ((uint32_t *)XdrvMailbox.data)[0];
+    // Use dimmer_hw_min and dimmer_hw_max to constrain our values if the light should be on
+    if (brightness > 0)
+        brightness = changeUIntScale(brightness, 0, 255, Settings->dimmer_hw_min * 10, Settings->dimmer_hw_max * 10);
+        ADISetValue(brightness);
+    return true;
+}
+
 void ADISetValue(uint16_t brightness){
     #ifdef ADI_DEBUG
       AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "ADISetValue %d"), brightness*15);
     #endif  // SHELLY_DIMMER_DEBUG
-     theDAC.setOutputLevel((uint16_t)(brightness*15));
+     theDAC.setOutputLevel((uint16_t)(brightness*16));
 }
 
 void DimmerAnimate(){
@@ -154,14 +163,6 @@ void DimmerButtonPressed(){
       DimmerTrigger();
  }
 
-bool ADISetChannels(void){
-    uint16_t brightness = ((uint32_t *)XdrvMailbox.data)[0];
-    // Use dimmer_hw_min and dimmer_hw_max to constrain our values if the light should be on
-    if (brightness > 0)
-        brightness = changeUIntScale(brightness, 0, 255, Settings->dimmer_hw_min * 10, Settings->dimmer_hw_max * 10);
-        ADISetValue(brightness);
-    return true;
-}
 
 /*********************************************************************************************\
  * Interface
