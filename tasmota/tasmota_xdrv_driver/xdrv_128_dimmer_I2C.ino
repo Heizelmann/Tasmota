@@ -6,11 +6,15 @@
   SPDX-License-Identifier: GPL-3.0-only
 */
 
+#ifdef USE_LIGHT
 #ifdef USE_I2C
 #ifdef USE_MCP47X6
 
 #define XDRV_128                 61
 #define XI2C_128                 67  // See I2CDEVICES.md
+
+#define ADI_DEBUG
+#define ADI_LOGNAME                 "ADI: "
 
 #include  <Wire.h>
 
@@ -65,14 +69,13 @@ void CmndRegler(void) {
   if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
     Settings->mcp47x6_state = XdrvMailbox.payload;
     SDimmer.timerState = S_DIS;
-    DimmerSetValue(Settings->mcp47x6_state);
+    ADIRequestValue(Settings->mcp47x6_state);
     ResponseCmndIdxNumber(Settings->mcp47x6_state);
   } 
 }
 
-void DimmerSetValue(uint16_t value){
-     theDAC.setOutputLevel((uint16_t)(value*40));
-     AddLog(LOG_LEVEL_INFO, PSTR("changeDimmer"));
+void ADIRequestValue(uint16_t value){
+     AddLog(LOG_LEVEL_INFO, PSTR("ADIRequestValue %d"), value);
      light_controller.changeDimmer(value); 
   
   //XdrvMailbox.index = index;
@@ -81,6 +84,13 @@ void DimmerSetValue(uint16_t value){
 
   //LightAnimate();
 
+}
+
+void ADISetValue(uint16_t brightness){
+    #ifdef ADI_DEBUG
+      AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "ADISetValue %d"), brightness*15);
+    #endif  // SHELLY_DIMMER_DEBUG
+     theDAC.setOutputLevel((uint16_t)(brightness*15));
 }
 
 void DimmerAnimate(){
@@ -92,14 +102,14 @@ void DimmerAnimate(){
         SDimmer.timerState = S_DIM;
         AddLog(LOG_LEVEL_INFO, "-->Dim");
         SDimmer.timer1 = millis();
-        DimmerSetValue(SSettings.level2);
+        ADIRequestValue(SSettings.level2);
       }
       break;
     case S_DIM:
       if ( millis() - SDimmer.timer1 > SSettings.dur2) {
         SDimmer.timerState = S_OFF;
         AddLog(LOG_LEVEL_INFO, "-->Off");
-        DimmerSetValue(0);
+        ADIRequestValue(0);
       }
       break;
     case S_DIS:
@@ -113,7 +123,7 @@ void DimmerTrigger() {
   if(XdrvMailbox.payload >1){
     SDimmer.timerState = S_DIS;
     AddLog(LOG_LEVEL_INFO, "FixOn");
-    DimmerSetValue(100);
+    ADIRequestValue(100);
     }
   else{
     switch (SDimmer.timerState) {
@@ -121,18 +131,18 @@ void DimmerTrigger() {
         SDimmer.timerState = S_ON;
         SDimmer.timer1 = millis();
         AddLog(LOG_LEVEL_INFO, "On");
-        DimmerSetValue( SSettings.level1 );
+        ADIRequestValue( SSettings.level1 );
         break;
       case S_ON: case S_DIS:
         SDimmer.timerState = S_OFF;
         AddLog(LOG_LEVEL_INFO, "Off");
-        DimmerSetValue(0);
+        ADIRequestValue(0);
         break;
       case S_DIM:
         SDimmer.timerState = S_ON;
         SDimmer.timer1 = millis();
         AddLog(LOG_LEVEL_INFO, "Retrigger");
-        DimmerSetValue( SSettings.level1 );
+        ADIRequestValue( SSettings.level1 );
         break;
     }
   }
@@ -142,7 +152,15 @@ void DimmerTrigger() {
 void DimmerButtonPressed(){
       AddLog(LOG_LEVEL_INFO, PSTR("Multi Button pressed:%d"),XdrvMailbox.payload);       
       DimmerTrigger();
-      
+ }
+
+bool ADISetChannels(void){
+    uint16_t brightness = ((uint32_t *)XdrvMailbox.data)[0];
+    // Use dimmer_hw_min and dimmer_hw_max to constrain our values if the light should be on
+    if (brightness > 0)
+        brightness = changeUIntScale(brightness, 0, 255, Settings->dimmer_hw_min * 10, Settings->dimmer_hw_max * 10);
+        ADISetValue(brightness);
+    return true;
 }
 
 /*********************************************************************************************\
@@ -160,7 +178,10 @@ bool Xdrv128(uint32_t function) {
      case FUNC_EVERY_50_MSECOND:
         DimmerAnimate();
         break;
-    case FUNC_COMMAND:
+     case FUNC_SET_CHANNELS:
+        result = ADISetChannels();
+        break;
+     case FUNC_COMMAND:
        result = DecodeCommand(kMCP47X6Commands, MCP47X6Command);
       break;
     case FUNC_BUTTON_MULTI_PRESSED:
@@ -182,3 +203,4 @@ bool Xdrv128(uint32_t function) {
 
 #endif // USE_MCP47X6
 #endif // USE_IC2
+#endif // USE_LIGHT
