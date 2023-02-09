@@ -48,24 +48,33 @@ struct SDIMMER_SETTINGS {
 MCP47X6 theDAC = MCP47X6(MCP47X6_DEFAULT_ADDRESS);
 
 void MCP47X6SetRegler(uint32_t idx) {
-      AddLog(LOG_LEVEL_DEBUG, "HZ:Set Wiper %d", Settings->mcp47x6_state);
+      AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "HZ:Set Wiper %d"), Settings->mcp47x6_state);
       theDAC.setOutputLevel(Settings->mcp47x6_state);
 }
 
-bool MCP47X6Detect(void) {
-    AddLog(LOG_LEVEL_INFO, "HZ:Detect");
+bool MCP47X6_ModuleSelected(void) {
+    AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "Detect"));
     theDAC.begin();
     theDAC.setVReference(MCP47X6_VREF_VDD);
     theDAC.setGain(MCP47X6_GAIN_1X);
     theDAC.saveSettings();
+
+    AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "light_type %d"),TasmotaGlobal.light_type);
+    TasmotaGlobal.devices_present++;
+    TasmotaGlobal.light_type += LT_SERIAL1;
+    AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "light_type %d"),TasmotaGlobal.light_type);
+   
+   //TasmotaGlobal.light_type += LT_SERIAL;
+    //TasmotaGlobal.light_driver = XLGT_11;
+
     return true; //TODO  
 }
 
 
 
 void CmndRegler(void) {
-  //Wiper<x> 0..100
-  AddLog(LOG_LEVEL_INFO, "%s %d %d", XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
+  //Regler<x> 0..100
+  AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
   if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
     Settings->mcp47x6_state = XdrvMailbox.payload;
     SDimmer.timerState = S_DIS;
@@ -75,7 +84,7 @@ void CmndRegler(void) {
 }
 
 void ADIRequestValue(uint16_t value){
-     AddLog(LOG_LEVEL_INFO, PSTR("ADIRequestValue %d"), value);
+     AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "RequestValue %d"), value);
      light_controller.changeDimmer(value); 
   
   //XdrvMailbox.index = index;
@@ -97,7 +106,7 @@ bool ADISetChannels(void){
 
 void ADISetValue(uint16_t brightness){
     #ifdef ADI_DEBUG
-      AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "ADISetValue %d"), brightness*15);
+      AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "SetValue %d"), brightness*15);
     #endif  // SHELLY_DIMMER_DEBUG
      theDAC.setOutputLevel((uint16_t)(brightness*16));
 }
@@ -109,7 +118,7 @@ void DimmerAnimate(){
     case S_ON:
       if ( millis() - SDimmer.timer1 > SSettings.dur1) {
         SDimmer.timerState = S_DIM;
-        AddLog(LOG_LEVEL_INFO, "-->Dim");
+        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "-->Dim"));
         SDimmer.timer1 = millis();
         ADIRequestValue(SSettings.level2);
       }
@@ -117,7 +126,7 @@ void DimmerAnimate(){
     case S_DIM:
       if ( millis() - SDimmer.timer1 > SSettings.dur2) {
         SDimmer.timerState = S_OFF;
-        AddLog(LOG_LEVEL_INFO, "-->Off");
+        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "-->Off"));
         ADIRequestValue(0);
       }
       break;
@@ -131,7 +140,7 @@ void DimmerAnimate(){
 void DimmerTrigger() {
   if(XdrvMailbox.payload >1){
     SDimmer.timerState = S_DIS;
-    AddLog(LOG_LEVEL_INFO, "FixOn");
+    AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "FixOn"));
     ADIRequestValue(100);
     }
   else{
@@ -139,18 +148,18 @@ void DimmerTrigger() {
       case S_OFF:
         SDimmer.timerState = S_ON;
         SDimmer.timer1 = millis();
-        AddLog(LOG_LEVEL_INFO, "On");
+        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "On"));
         ADIRequestValue( SSettings.level1 );
         break;
       case S_ON: case S_DIS:
         SDimmer.timerState = S_OFF;
-        AddLog(LOG_LEVEL_INFO, "Off");
+        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "Off"));
         ADIRequestValue(0);
         break;
       case S_DIM:
         SDimmer.timerState = S_ON;
         SDimmer.timer1 = millis();
-        AddLog(LOG_LEVEL_INFO, "Retrigger");
+        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "Retrigger"));
         ADIRequestValue( SSettings.level1 );
         break;
     }
@@ -159,7 +168,7 @@ void DimmerTrigger() {
 
 
 void DimmerButtonPressed(){
-      AddLog(LOG_LEVEL_INFO, PSTR("Multi Button pressed:%d"),XdrvMailbox.payload);       
+      AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "Multi Button pressed:%d"),XdrvMailbox.payload);       
       DimmerTrigger();
  }
 
@@ -173,28 +182,29 @@ bool Xdrv128(uint32_t function) {
 
   bool result = false;
   switch (function) {
+    case FUNC_SET_CHANNELS:
+        result = ADISetChannels();
+        break;
     case FUNC_MODULE_INIT:
-      result = MCP47X6Detect();
+         AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "FUNC_MODULE_INIT"));
+         result = MCP47X6_ModuleSelected();
       break;
      case FUNC_EVERY_50_MSECOND:
         DimmerAnimate();
         break;
-     case FUNC_SET_CHANNELS:
-        result = ADISetChannels();
-        break;
-     case FUNC_COMMAND:
+      case FUNC_COMMAND:
        result = DecodeCommand(kMCP47X6Commands, MCP47X6Command);
       break;
     case FUNC_BUTTON_MULTI_PRESSED:
         DimmerButtonPressed();
-        AddLog(LOG_LEVEL_INFO, PSTR("pwm_min:%d"),Light.pwm_min);
-        //AddLog(LOG_LEVEL_INFO, PSTR("getBri:%d"),light_state.getBri());
-        AddLog(LOG_LEVEL_INFO, PSTR("getDimmer:%d"),light_state.getDimmer(0));
+        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "pwm_min_perc:%d, pwm_max_perc:%d"),Light.pwm_min, Light.pwm_max);
+        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "brightness:%d"),light_state.getBri());
+        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "percent:%d"),light_state.getDimmer(0));
         result = true;
        break;
     /*case FUNC_BUTTON_PRESSED:
         if (!XdrvMailbox.index && ((PRESSED == XdrvMailbox.payload) && (NOT_PRESSED == Button.last_state[XdrvMailbox.index]))) {
-           AddLog(LOG_LEVEL_INFO, PSTR("Button pressed:%d"),XdrvMailbox.payload);
+           AddLog(LOG_LEVEL_DEBUG, PSTR("Button pressed:%d"),XdrvMailbox.payload);
          }
         result = true;
       break;*/
