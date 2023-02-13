@@ -115,8 +115,8 @@ void AdiRequestValue(uint16_t value){
 bool AdiSetChannels(void){
   uint16_t brightness = ((uint32_t *)XdrvMailbox.data)[0];
   // Use dimmer_hw_min and dimmer_hw_max to constrain our values if the light should be on
-  if (brightness > 0)
-    brightness = changeUIntScale(brightness, 0, 255, Settings->dimmer_hw_min * 10, Settings->dimmer_hw_max * 10);
+  //if (brightness > 0)
+  //  brightness = changeUIntScale(brightness, 0, 255, Settings->dimmer_hw_min * 10, Settings->dimmer_hw_max * 10);
   ADISetValue(brightness);
   return true;
 }
