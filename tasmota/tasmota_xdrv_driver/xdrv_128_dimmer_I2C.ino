@@ -52,22 +52,22 @@ bool AdiInit(void) {
 
   // If the module was just changed to this module, set the defaults.
   if (TasmotaGlobal.module_changed) {
-     AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "---MODUL CHANGED"));
+     AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "---MODUL CHANGED"));
     //Settings->flag.pwm_control = true;     // SetOption15 - Switch between commands PWM or COLOR/DIMMER/CT/CHANNEL
     //Settings->bri_power_on = Settings->bri_preset_low = Settings->bri_preset_high = 0;
   }
 
-  AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "Detect"));
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Detect"));
   theDAC.begin();
   theDAC.setVReference(MCP47X6_VREF_VDD);
   theDAC.setGain(MCP47X6_GAIN_1X);
   theDAC.saveSettings();
 
-  AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "light_type %d"),TasmotaGlobal.light_type);
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "light_type %d"),TasmotaGlobal.light_type);
   TasmotaGlobal.devices_present++;
   TasmotaGlobal.light_type += LT_SERIAL1; //ligttype for one channel dimmer, needed to activate module commands
     
-  AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "light_type %d"),TasmotaGlobal.light_type);
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "light_type %d"),TasmotaGlobal.light_type);
    
   //TasmotaGlobal.light_type += LT_SERIAL;
   //TasmotaGlobal.light_driver = XLGT_11;
@@ -103,7 +103,7 @@ void AdiSaveSettings(void){
 }
 
 void AdiRequestValue(uint16_t value){
-  AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "RequestValue %d"), value);
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "RequestValue %d"), value);
   light_controller.changeDimmer(value); 
   
   //XdrvMailbox.index = index;
@@ -123,7 +123,7 @@ bool AdiSetChannels(void){
 
 void ADISetValue(uint16_t brightness){
   #ifdef ADI_DEBUG
-    AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "SetValue %d"), brightness*15);
+    AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "SetValue %d"), brightness*15);
   #endif  // ADI_DEBUG
   theDAC.setOutputLevel((uint16_t)(brightness*16));
 }
@@ -135,7 +135,7 @@ void DimmerAnimate(){
   case S_ON:
     if ( millis() - SDimmer.timer1 > AdiSettings.dur1*1000) {
       SDimmer.timerState = S_DIM;
-      AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "-->Dim"));
+      AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "-->Dim"));
       SDimmer.timer1 = millis();
       AdiRequestValue(AdiSettings.level2);
     }
@@ -143,7 +143,7 @@ void DimmerAnimate(){
   case S_DIM:
     if ( millis() - SDimmer.timer1 > AdiSettings.dur2*1000) {
       SDimmer.timerState = S_OFF;
-      AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "-->Off"));
+      AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "-->Off"));
       AdiRequestValue(0);
     }
     break;
@@ -156,7 +156,7 @@ void DimmerAnimate(){
 void DimmerTrigger() {
   if(XdrvMailbox.payload >1){
     SDimmer.timerState = S_DIS;
-    AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "FixOn"));
+    AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "FixOn"));
     AdiRequestValue(100);
     }
   else{
@@ -164,18 +164,18 @@ void DimmerTrigger() {
       case S_OFF:
         SDimmer.timerState = S_ON;
         SDimmer.timer1 = millis();
-        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "On"));
+        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "On"));
         AdiRequestValue( AdiSettings.level1 );
         break;
       case S_ON: case S_DIS:
         SDimmer.timerState = S_OFF;
-        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "Off"));
+        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Off"));
         AdiRequestValue(0);
         break;
       case S_DIM:
         SDimmer.timerState = S_ON;
         SDimmer.timer1 = millis();
-        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "Retrigger"));
+        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Retrigger"));
         AdiRequestValue( AdiSettings.level1 );
         break;
     }
@@ -183,7 +183,7 @@ void DimmerTrigger() {
 }
 
 void DimmerButtonPressed(){
-  AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "Multi Button pressed:%d"),XdrvMailbox.payload);       
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Multi Button pressed:%d"),XdrvMailbox.payload);       
   DimmerTrigger();
  }
 
@@ -193,7 +193,7 @@ void DimmerButtonPressed(){
 \*********************************************************************************************/
 /*void CmndRegler(void) {
   //Regler<x> 0..100
-  AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
   if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
     Settings->mcp47x6_state = XdrvMailbox.payload;
     SDimmer.timerState = S_DIS;
@@ -215,7 +215,7 @@ void (* const ADICommand[])(void) PROGMEM = {
 
 
 void CmndADILevel1(void) {
-  AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
   if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
     AdiSettings.level1 = XdrvMailbox.payload;
   }
@@ -224,7 +224,7 @@ void CmndADILevel1(void) {
 }
 
 void CmndADILevel2(void) {
-  AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
   if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
     AdiSettings.level2 = XdrvMailbox.payload;
    }
@@ -233,7 +233,7 @@ void CmndADILevel2(void) {
 }
 
 void CmndADIDur1(void) {
-  AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
   if ((XdrvMailbox.payload >= 5) && (XdrvMailbox.payload <= 600)) {
     AdiSettings.dur1 = XdrvMailbox.payload;
    } 
@@ -242,7 +242,7 @@ void CmndADIDur1(void) {
 }
 
 void CmndADIDur2(void) {
-  AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
   if ((XdrvMailbox.payload >= 5) && (XdrvMailbox.payload <= 600)) {
     AdiSettings.dur2 = XdrvMailbox.payload;
    } 
@@ -264,7 +264,7 @@ bool Xdrv128(uint32_t function) {
         result = AdiSetChannels();
         break;
     case FUNC_MODULE_INIT:
-         AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "FUNC_MODULE_INIT"));
+         AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "FUNC_MODULE_INIT"));
          result = AdiInit();
       break;
      case FUNC_EVERY_50_MSECOND:
@@ -274,18 +274,19 @@ bool Xdrv128(uint32_t function) {
         result = DecodeCommand(kADICommands, ADICommand);
       break;
     case FUNC_BUTTON_MULTI_PRESSED:
-        DimmerButtonPressed();
-        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "pwm_min_perc:%d, pwm_max_perc:%d"),Light.pwm_min, Light.pwm_max);
-        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "brightness:%d"),light_state.getBri());
-        AddLog(LOG_LEVEL_DEBUG, PSTR(ADI_LOGNAME "percent:%d"),light_state.getDimmer(0));
+         AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "BUTTON_MULTI_PRESSED:%d : %d"),XdrvMailbox.index, XdrvMailbox.payload);
+         //DimmerButtonPressed();
+        //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "pwm_min_perc:%d, pwm_max_perc:%d"),Light.pwm_min, Light.pwm_max);
+        //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "brightness:%d"),light_state.getBri());
+        //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "percent:%d"),light_state.getDimmer(0));
         result = true;
        break;
-    /*case FUNC_BUTTON_PRESSED:
-        if (!XdrvMailbox.index && ((PRESSED == XdrvMailbox.payload) && (NOT_PRESSED == Button.last_state[XdrvMailbox.index]))) {
-           AddLog(LOG_LEVEL_DEBUG, PSTR("Button pressed:%d"),XdrvMailbox.payload);
-         }
-        result = true;
-      break;*/
+    //case FUNC_BUTTON_PRESSED:
+        //if (!XdrvMailbox.index && ((PRESSED == XdrvMailbox.payload) && (NOT_PRESSED == Button.last_state[XdrvMailbox.index]))) {
+           AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Button pressed:%d : %d"),XdrvMailbox.index, XdrvMailbox.payload);
+        // }
+     //   result = true;
+     // break;
   }
   return result;
 }
