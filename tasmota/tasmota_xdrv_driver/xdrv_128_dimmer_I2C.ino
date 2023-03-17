@@ -22,6 +22,7 @@
 
 enum TimerStateType {S_OFF, S_ON, S_DIM, S_DIS };
 
+boolean isMultiPressed;
 
 struct SDIMMER {
   uint8_t currentLevel = 0;
@@ -75,6 +76,7 @@ bool AdiInit(void) {
   return true; //TODO  
 }
 
+// Settings are stored as comma separted string in global settings
 void AdiGetSettings(void){
   char parameters[32];
   //AdiSettings.level1 = 0;
@@ -102,6 +104,7 @@ void AdiSaveSettings(void){
   SettingsUpdateText(SET_SHD_PARAM, parameters);
 }
 
+// send desired value [0..100] to external fader engine
 void AdiRequestValue(uint16_t value){
   AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "RequestValue %d"), value);
   light_controller.changeDimmer(value); 
@@ -112,6 +115,7 @@ void AdiRequestValue(uint16_t value){
   //LightAnimate();
 }
 
+// callback from fader engine, triggered by FUNC_SET_CHANNELS
 bool AdiSetChannels(void){
   uint16_t brightness = ((uint32_t *)XdrvMailbox.data)[0];
   // Use dimmer_hw_min and dimmer_hw_max to constrain our values if the light should be on
@@ -121,13 +125,15 @@ bool AdiSetChannels(void){
   return true;
 }
 
+// send brighness value to DAC, brightness 0..255 --> output 0..4095
 void ADISetValue(uint16_t brightness){
   #ifdef ADI_DEBUG
-    AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "SetValue %d"), brightness*15);
+    AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "SetValue %d"), brightness*16); //TODO replace 16 by bitresolution of DAC, currently fixed to 12 bit
   #endif  // ADI_DEBUG
   theDAC.setOutputLevel((uint16_t)(brightness*16));
 }
 
+// called at regulary time intervals to check if timer state changed
 void DimmerAnimate(){
   switch (SDimmer.timerState) {
   case S_OFF:
@@ -153,8 +159,9 @@ void DimmerAnimate(){
 //      theDAC.setOutputLevel(Settings->mcp47x6_state);
 }
 
+// called on button pressed
 void DimmerTrigger() {
-  if(XdrvMailbox.payload >1){
+  if(isMultiPressed) {  // Switch on without timer; keeps on until button pressed again
     SDimmer.timerState = S_DIS;
     AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "FixOn"));
     AdiRequestValue(100);
@@ -183,7 +190,8 @@ void DimmerTrigger() {
 }
 
 void DimmerButtonPressed(){
-  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Multi Button pressed:%d"),XdrvMailbox.payload);       
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Multi Button pressed:%d"),XdrvMailbox.payload);
+  isMultiPressed = XdrvMailbox.payload > 1;        
   DimmerTrigger();
  }
 
