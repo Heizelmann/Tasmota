@@ -35,6 +35,7 @@ struct ADI_DIMMER_SETTINGS {
   uint8_t level2=39;
   uint16_t dur1=10000;
   uint16_t dur2=10000;
+  uint8_t maxTemp;
 } AdiSettings;
 
 MCP47X6 theDAC = MCP47X6(MCP47X6_DEFAULT_ADDRESS);
@@ -83,6 +84,7 @@ void AdiGetSettings(void){
   //AdiSettings.level2 = 0;
   //AdiSettings.dur1 = 0;
   //AdiSettings.dur2 = 0; 
+  //AdiSettings.maxTemp = 0; 
   if (strstr(SettingsText(SET_SHD_PARAM), ",") != nullptr){
     #ifdef ADI_DEBUG
       AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Loading params: %s"), SettingsText(SET_SHD_PARAM));
@@ -91,20 +93,22 @@ void AdiGetSettings(void){
     AdiSettings.level2 = atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 2));
     AdiSettings.dur1 =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 3));
     AdiSettings.dur2 =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 4));
+    AdiSettings.maxTemp =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 5));
   }
 }
 
 void AdiSaveSettings(void){
   char parameters[32];
-  snprintf_P(parameters, sizeof(parameters), PSTR("%d,%d,%d,%d"),
+  snprintf_P(parameters, sizeof(parameters), PSTR("%d,%d,%d,%d,%d"),
                AdiSettings.level1,
                AdiSettings.level2,
                AdiSettings.dur1,
-               AdiSettings.dur2);
+               AdiSettings.dur2,
+               AdiSettings.maxTemp);
   SettingsUpdateText(SET_SHD_PARAM, parameters);
 }
 
-// send desired value [0..100] to external fader engine
+// send dimmer desired value [0..100] to external fader engine
 void AdiRequestValue(uint16_t value){
   AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "RequestValue %d"), value);
   light_controller.changeDimmer(value); 
@@ -125,7 +129,7 @@ bool AdiSetChannels(void){
   return true;
 }
 
-// send brighness value to DAC, brightness 0..255 --> output 0..4095
+// send brightness value to DAC, brightness 0..255 --> output 0..4095
 void ADISetValue(uint16_t brightness){
   #ifdef ADI_DEBUG
     AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "SetValue %d"), brightness*16); //TODO replace 16 by bitresolution of DAC, currently fixed to 12 bit
@@ -133,7 +137,7 @@ void ADISetValue(uint16_t brightness){
   theDAC.setOutputLevel((uint16_t)(brightness*16));
 }
 
-// called at regulary time intervals to check if timer state changed
+// called at regulary time intervals to react on timer state changed
 void DimmerAnimate(){
   switch (SDimmer.timerState) {
   case S_OFF:
@@ -209,17 +213,18 @@ void DimmerButtonPressed(){
     ResponseCmndIdxNumber(Settings->mcp47x6_state);
   } 
 }*/
-#define D_PRFX_ADI "ADI"
-#define D_CMND_LEVELa "LEVELA"
-#define D_CMND_LEVELb "LEVELB"
-#define D_CMND_DURa  "DURA"
-#define D_CMND_DURb "DURB"
+#define D_PRFX_ADI "ADI"          // Advanced DImmer
+#define D_CMND_LEVELa "LEVELA"    // Dimmer level for ON state
+#define D_CMND_LEVELb "LEVELB"    // Dimmer level for DIM state
+#define D_CMND_DURa  "DURA"       // Duration of ON state
+#define D_CMND_DURb "DURB"        // Duration od DIM state
+#define D_CMND_TEMP_TH "MAXTEMP"  // Temperature threshold for switch off
 
 const char kADICommands[] PROGMEM = D_PRFX_ADI "|" 
-  D_CMND_LEVELa "|" D_CMND_LEVELb "|" D_CMND_DURa "|" D_CMND_DURb ;
+  D_CMND_LEVELa "|" D_CMND_LEVELb "|" D_CMND_DURa "|" D_CMND_DURb "|" D_CMND_TEMP_TH ;
 
 void (* const ADICommand[])(void) PROGMEM = {
-  &CmndADILevel1, &CmndADILevel2, &CmndADIDur1, &CmndADIDur2  };
+  &CmndADILevel1, &CmndADILevel2, &CmndADIDur1, &CmndADIDur2, &CmndADIMaxTemp };
 
 
 void CmndADILevel1(void) {
@@ -258,6 +263,15 @@ void CmndADIDur2(void) {
    ResponseCmndIdxNumber(AdiSettings.dur2);
 }
 
+void CmndADIMaxTemp(void) {
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
+  if ((XdrvMailbox.payload >= 30) && (XdrvMailbox.payload <= 90)) {
+    AdiSettings.maxTemp = XdrvMailbox.payload;
+   } 
+   AdiSaveSettings();
+   ResponseCmndIdxNumber(AdiSettings.maxTemp);
+
+}
 
 /*********************************************************************************************\
  * Interface
