@@ -25,6 +25,7 @@ enum TimerStateType {S_OFF, S_ON, S_DIM, S_DIS };
 boolean isMultiPressed;
 
 struct SDIMMER {
+  bool overheated;
   uint8_t currentLevel = 0;
   uint32_t timer1;
   TimerStateType timerState = S_OFF;
@@ -112,7 +113,6 @@ void AdiSaveSettings(void){
 void AdiRequestValue(uint16_t value){
   AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "RequestValue %d"), value);
   light_controller.changeDimmer(value); 
-  
   //XdrvMailbox.index = index;
   //XdrvMailbox.payload = dimmer;
   //CmndDimmer();
@@ -289,6 +289,20 @@ bool Xdrv128(uint32_t function) {
          AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "FUNC_MODULE_INIT"));
          result = AdiInit();
       break;
+      case FUNC_EVERY_SECOND:
+        char str_temp[5];
+        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "GlobalTemperature: %s"),dtostrf(TasmotaGlobal.temperature_celsius, 3, 2, str_temp));
+
+        if ( TasmotaGlobal.temperature_celsius > AdiSettings.maxTemp ){
+          SDimmer.overheated = true;
+        }
+        else if (TasmotaGlobal.temperature_celsius < AdiSettings.maxTemp - 3){
+          SDimmer.overheated = false;
+        }
+       if (SDimmer.overheated) {
+        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "OVERHEATED"));
+       }
+        break;
      case FUNC_EVERY_50_MSECOND:
         DimmerAnimate();
         break;
