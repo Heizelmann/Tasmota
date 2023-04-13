@@ -37,6 +37,7 @@ struct ADI_DIMMER_SETTINGS {
   uint16_t dur1=10000;
   uint16_t dur2=10000;
   uint8_t maxTemp;
+  uint8_t maxLux;
 } AdiSettings;
 
 MCP47X6 theDAC = MCP47X6(MCP47X6_DEFAULT_ADDRESS);
@@ -95,6 +96,7 @@ void AdiGetSettings(void){
     AdiSettings.dur1 =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 3));
     AdiSettings.dur2 =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 4));
     AdiSettings.maxTemp =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 5));
+    AdiSettings.maxLux =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 6));
   }
 }
 
@@ -105,7 +107,8 @@ void AdiSaveSettings(void){
                AdiSettings.level2,
                AdiSettings.dur1,
                AdiSettings.dur2,
-               AdiSettings.maxTemp);
+               AdiSettings.maxTemp,
+               AdiSettings.maxLux);
   SettingsUpdateText(SET_SHD_PARAM, parameters);
 }
 
@@ -219,12 +222,13 @@ void DimmerButtonPressed(){
 #define D_CMND_DURa  "DURA"       // Duration of ON state
 #define D_CMND_DURb "DURB"        // Duration od DIM state
 #define D_CMND_TEMP_TH "MAXTEMP"  // Temperature threshold for switch off
+#define D_CMND_LUX_TH "MAXLUX"    // Light threshold for motion detect
 
 const char kADICommands[] PROGMEM = D_PRFX_ADI "|" 
-  D_CMND_LEVELa "|" D_CMND_LEVELb "|" D_CMND_DURa "|" D_CMND_DURb "|" D_CMND_TEMP_TH ;
+  D_CMND_LEVELa "|" D_CMND_LEVELb "|" D_CMND_DURa "|" D_CMND_DURb "|" D_CMND_TEMP_TH "|" D_CMND_LUX_TH ;
 
 void (* const ADICommand[])(void) PROGMEM = {
-  &CmndADILevel1, &CmndADILevel2, &CmndADIDur1, &CmndADIDur2, &CmndADIMaxTemp };
+  &CmndADILevel1, &CmndADILevel2, &CmndADIDur1, &CmndADIDur2, &CmndADIMaxTemp, &CmndADIMaxLux };
 
 
 void CmndADILevel1(void) {
@@ -241,8 +245,8 @@ void CmndADILevel2(void) {
   if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
     AdiSettings.level2 = XdrvMailbox.payload;
    }
- AdiSaveSettings();
-   ResponseCmndIdxNumber(AdiSettings.level2);
+  AdiSaveSettings();
+  ResponseCmndIdxNumber(AdiSettings.level2);
 }
 
 void CmndADIDur1(void) {
@@ -265,7 +269,7 @@ void CmndADIDur2(void) {
 
 void CmndADIMaxTemp(void) {
   AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
-  if ((XdrvMailbox.payload >= 30) && (XdrvMailbox.payload <= 90)) {
+  if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 90)) {
     AdiSettings.maxTemp = XdrvMailbox.payload;
    } 
    AdiSaveSettings();
@@ -273,11 +277,168 @@ void CmndADIMaxTemp(void) {
 
 }
 
+void CmndADIMaxLux(void) {
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
+  if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 255)) {
+    AdiSettings.maxLux = XdrvMailbox.payload;
+   } 
+   AdiSaveSettings();
+   ResponseCmndIdxNumber(AdiSettings.maxLux);
+
+}
+
 /*********************************************************************************************\
  * Interface
 \*********************************************************************************************/
 
-bool Xdrv128(uint32_t function) {
+// Find appropriate unit for measurement type.
+const char *UnitfromType1(const char *type)
+{
+  if (strcmp(type, "time") == 0) {
+    return "seconds";
+  }
+  if (strcmp(type, "temperature") == 0 || strcmp(type, "dewpoint") == 0) {
+    return "celsius";
+  }
+  if (strcmp(type, "pressure") == 0) {
+    return "hpa";
+  }
+  if (strcmp(type, "voltage") == 0) {
+    return "volts";
+  }
+  if (strcmp(type, "current") == 0) {
+    return "amperes";
+  }
+  if (strcmp(type, "mass") == 0) {
+    return "grams";
+  }
+  if (strcmp(type, "carbondioxide") == 0) {
+    return "ppm";
+  }
+  if (strcmp(type, "humidity") == 0) {
+    return "percentage";
+  }
+  if (strcmp(type, "id") == 0) {
+    return "untyped";
+  }
+  if (strcmp(type, "illuminance") == 0) {
+    return "lx";
+  }
+  return "";
+}
+
+// Replace spaces and periods in metric name to match Prometheus metrics
+// convention.
+String FormatMetricName(const char *metric) {
+  String formatted = metric;
+  formatted.toLowerCase();
+  formatted.replace(" ", "_");
+  formatted.replace(".", "_");
+  return formatted;
+}
+
+void getSensorData(){
+       char namebuf[64];
+
+        // Get MQTT sensor data as JSONstring
+        ResponseClear();
+        MqttShowSensor(true); //Pull sensor data
+        String jsonStr = ResponseData();
+        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "JSON-STRING: %s "), jsonStr.c_str());
+
+        // Parse JSON String to get specific sensor data
+        JsonParser parser((char *)jsonStr.c_str());
+        JsonParserObject root = parser.getRootObject();
+
+        /* This is wrong
+        if (!root) { ResponseCmndChar_P(PSTR("Invalid JSON")); return; }
+        uint16_t d = root.getUInt(PSTR("Illuminance"), 0xFFFF);   // case insensitive
+        //bool     b = root.getBool(PSTR("Power"), false);
+        float    f = root.getFloat(PSTR("Temperature"), -100);
+        char str_temp[5];
+        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE00: %d, %s"),d, dtostrf(f, 3, 2, str_temp));
+        */
+
+        if (root) { // did JSON parsing succeed?
+          for (auto key1 : root) {
+              JsonParserToken value1 = key1.getValue();
+              if (value1.isObject()) {
+                JsonParserObject Object2 = value1.getObject();
+                for (auto key2 : Object2) {
+                  JsonParserToken value2 = key2.getValue();
+                  if (value2.isObject()) {
+                    JsonParserObject Object3 = value2.getObject();
+                    for (auto key3 : Object3) {
+                      const char *value = key3.getValue().getStr(nullptr);
+                      if (value != nullptr && isdigit(value[0])) {
+                        String sensor = FormatMetricName(key2.getStr());
+                        String type = FormatMetricName(key3.getStr());
+
+                        snprintf_P(namebuf, sizeof(namebuf), PSTR("sensors_%s_%s"),
+                          type.c_str(), UnitfromType1(type.c_str()));
+                        ///////////WritePromMetricStr(namebuf, kPromMetricGauge, value,  PSTR("sensor"), sensor.c_str(),nullptr);
+                        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE1: %s = %s from sensor %s"),namebuf, value, sensor.c_str());
+                      }
+                    }
+                  } else {
+                    const char *value = value2.getStr(nullptr);
+                    if (value != nullptr && isdigit(value[0])) {
+                      String sensor = FormatMetricName(key1.getStr());
+                      String type = FormatMetricName(key2.getStr());
+                      if (strcmp(type.c_str(), "totalstarttime") != 0) {  // this metric causes Prometheus of fail
+                        snprintf_P(namebuf, sizeof(namebuf), PSTR("sensors_%s_%s"),
+                          type.c_str(), UnitfromType1(type.c_str()));
+
+                        if (strcmp(type.c_str(), "id") == 0) {            // this metric is NaN, so convert it to a label, see Wi-Fi metrics above
+                          /*WritePromMetricInt32(namebuf, kPromMetricGauge, 1,
+                            PSTR("sensor"), sensor.c_str(),
+                            PSTR("id"), value,
+                            nullptr);
+                            */
+                           AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE2: %s = %s from sensor %s"),namebuf, value, sensor.c_str());
+
+                        } else {
+
+                          // sensor.c_str() // Name des Sensors
+                          // type.c_str()   // Type e.g. Temperatur, Illuminance
+                          //value // Wert als String
+    
+
+                          /*WritePromMetricStr(namebuf, kPromMetricGauge, value,
+                            PSTR("sensor"), sensor.c_str(),
+                            nullptr);
+                            */
+                          if(strcmp(namebuf,"sensors_illuminance_lx")==0){
+                            AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Illuminance = %s "),value);
+                          }
+                          else if(strcmp(namebuf,"sensors_temperature_celsius")==0){
+                             AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature = %s "),value);
+                          }
+                          else {
+                            AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3: %s = %s from sensor %s"),namebuf, value, sensor.c_str());
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              } else {
+                const char *value = value1.getStr(nullptr);
+                String sensor = FormatMetricName(key1.getStr());
+
+                if (value != nullptr && isdigit(value[0] && strcmp(sensor.c_str(), "time") != 0)) {  //remove false 'time' metric
+                  /*WritePromMetricStr(PSTR("sensors"), kPromMetricGauge, value,
+                    PSTR("sensor"), sensor.c_str(),
+                    nullptr);
+                    */
+                  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE4: sensors = %s from sensor %s"), value, sensor.c_str());  
+                }
+              }
+            }
+          }
+  }
+  
+  bool Xdrv128(uint32_t function) {
   if (!I2cEnabled(XI2C_128)) { return false; }
 
   bool result = false;
@@ -290,9 +451,7 @@ bool Xdrv128(uint32_t function) {
          result = AdiInit();
       break;
       case FUNC_EVERY_SECOND:
-        char str_temp[5];
-        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "GlobalTemperature: %s"),dtostrf(TasmotaGlobal.temperature_celsius, 3, 2, str_temp));
-
+        getSensorData();
         if ( TasmotaGlobal.temperature_celsius > AdiSettings.maxTemp ){
           SDimmer.overheated = true;
         }
@@ -311,7 +470,7 @@ bool Xdrv128(uint32_t function) {
       break;
     case FUNC_BUTTON_MULTI_PRESSED:
          AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "BUTTON_MULTI_PRESSED:%d : %d"),XdrvMailbox.index, XdrvMailbox.payload);
-         //DimmerButtonPressed();
+         DimmerButtonPressed();
         //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "pwm_min_perc:%d, pwm_max_perc:%d"),Light.pwm_min, Light.pwm_max);
         //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "brightness:%d"),light_state.getBri());
         //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "percent:%d"),light_state.getDimmer(0));
@@ -319,7 +478,7 @@ bool Xdrv128(uint32_t function) {
        break;
     //case FUNC_BUTTON_PRESSED:
         //if (!XdrvMailbox.index && ((PRESSED == XdrvMailbox.payload) && (NOT_PRESSED == Button.last_state[XdrvMailbox.index]))) {
-           AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Button pressed:%d : %d"),XdrvMailbox.index, XdrvMailbox.payload);
+           //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Button pressed:%d : %d"),XdrvMailbox.index, XdrvMailbox.payload);
         // }
      //   result = true;
      // break;
