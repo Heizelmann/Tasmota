@@ -29,6 +29,8 @@ struct SDIMMER {
   uint8_t currentLevel = 0;
   uint32_t timer1;
   TimerStateType timerState = S_OFF;
+  float temperature;
+  uint32_t illuminance;
 } SDimmer;
 
 struct ADI_DIMMER_SETTINGS {
@@ -102,7 +104,7 @@ void AdiGetSettings(void){
 
 void AdiSaveSettings(void){
   char parameters[32];
-  snprintf_P(parameters, sizeof(parameters), PSTR("%d,%d,%d,%d,%d"),
+  snprintf_P(parameters, sizeof(parameters), PSTR("%d,%d,%d,%d,%d,%d"),
                AdiSettings.level1,
                AdiSettings.level2,
                AdiSettings.dur1,
@@ -344,7 +346,7 @@ void getSensorData(){
         ResponseClear();
         MqttShowSensor(true); //Pull sensor data
         String jsonStr = ResponseData();
-        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "JSON-STRING: %s "), jsonStr.c_str());
+        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "JSON-STRING V1.1 : %s "), jsonStr.c_str());
 
         // Parse JSON String to get specific sensor data
         JsonParser parser((char *)jsonStr.c_str());
@@ -395,7 +397,7 @@ void getSensorData(){
                             PSTR("id"), value,
                             nullptr);
                             */
-                           AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE2: %s = %s from sensor %s"),namebuf, value, sensor.c_str());
+                           //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE2: %s = %s from sensor %s"),namebuf, value, sensor.c_str());
 
                         } else {
 
@@ -410,9 +412,15 @@ void getSensorData(){
                             */
                           if(strcmp(namebuf,"sensors_illuminance_lx")==0){
                             AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Illuminance = %s "),value);
+                            SDimmer.illuminance = value2.getUInt();
+                            AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Illuminance = %d "),SDimmer.illuminance);
                           }
                           else if(strcmp(namebuf,"sensors_temperature_celsius")==0){
-                             AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature = %s "),value);
+                            AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature = %s "),value);
+                            SDimmer.temperature = value2.getFloat();
+                            char str_temp[4];
+                            AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature = %s "),dtostrf(SDimmer.temperature,3, 1, str_temp));
+                             //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature = %f "),SDimmer.temperature);//!!! does not work, not implemented
                           }
                           else {
                             AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3: %s = %s from sensor %s"),namebuf, value, sensor.c_str());
