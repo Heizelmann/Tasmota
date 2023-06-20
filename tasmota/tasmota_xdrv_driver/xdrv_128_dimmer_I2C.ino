@@ -29,7 +29,7 @@ struct SDIMMER {
   uint8_t currentLevel = 0;
   uint32_t timer1;
   TimerStateType timerState = S_OFF;
-  float temperature;
+  float temperature[2];
   uint32_t illuminance;
 } SDimmer;
 
@@ -52,6 +52,9 @@ bool AdiInit(void) {
   AdiGetSettings();
   AdiSaveSettings();
 
+  // TSettings type is defined in Tasmota_types.h
+  //Settings is declared in tasmota.ino
+  
   Settings->seriallog_level = 0;
   Settings->flag.mqtt_serial = 0;  // Disable serial logging
   //Settings->ledstate = 0;          // Disable LED usage
@@ -199,7 +202,6 @@ void DimmerTrigger() {
 }
 
 void DimmerButtonPressed(){
-  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Multi Button pressed:%d"),XdrvMailbox.payload);
   isMultiPressed = XdrvMailbox.payload > 1;        
   DimmerTrigger();
  }
@@ -341,12 +343,13 @@ String FormatMetricName(const char *metric) {
 
 void getSensorData(){
        char namebuf[64];
+       uint8_t tcnt = 0;
 
         // Get MQTT sensor data as JSONstring
         ResponseClear();
         MqttShowSensor(true); //Pull sensor data
         String jsonStr = ResponseData();
-        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "JSON-STRING V1.1 : %s "), jsonStr.c_str());
+        //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "JSON-STRING V1.1 : %s "), jsonStr.c_str());
 
         // Parse JSON String to get specific sensor data
         JsonParser parser((char *)jsonStr.c_str());
@@ -411,16 +414,17 @@ void getSensorData(){
                             nullptr);
                             */
                           if(strcmp(namebuf,"sensors_illuminance_lx")==0){
-                            AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Illuminance = %s "),value);
+                            //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Illuminance = %s "),value);
                             SDimmer.illuminance = value2.getUInt();
                             AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Illuminance = %d "),SDimmer.illuminance);
                           }
                           else if(strcmp(namebuf,"sensors_temperature_celsius")==0){
-                            AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature = %s "),value);
-                            SDimmer.temperature = value2.getFloat();
+                            //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature %d = %s "),tcnt,value);
+                            SDimmer.temperature[tcnt] = value2.getFloat(); 
                             char str_temp[4];
-                            AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature = %s "),dtostrf(SDimmer.temperature,3, 1, str_temp));
+                            AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature %d = %s "),tcnt,dtostrf(SDimmer.temperature[tcnt],3, 1, str_temp));
                              //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature = %f "),SDimmer.temperature);//!!! does not work, not implemented
+                            tcnt++;
                           }
                           else {
                             AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3: %s = %s from sensor %s"),namebuf, value, sensor.c_str());
@@ -477,7 +481,7 @@ void getSensorData(){
         result = DecodeCommand(kADICommands, ADICommand);
       break;
     case FUNC_BUTTON_MULTI_PRESSED:
-         AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "BUTTON_MULTI_PRESSED:%d : %d"),XdrvMailbox.index, XdrvMailbox.payload);
+         AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "BUTTON_MULTI_PRESSED: idx:%d, cnt: : %d"),XdrvMailbox.index, XdrvMailbox.payload);
          DimmerButtonPressed();
         //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "pwm_min_perc:%d, pwm_max_perc:%d"),Light.pwm_min, Light.pwm_max);
         //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "brightness:%d"),light_state.getBri());
