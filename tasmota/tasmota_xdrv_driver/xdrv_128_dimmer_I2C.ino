@@ -45,7 +45,7 @@ struct ADI_DIMMER_SETTINGS {
 MCP47X6 theDAC = MCP47X6(MCP47X6_DEFAULT_ADDRESS);
 
 bool AdiInit(void) {
-  #ifdef ADI_DEBUG
+ #ifdef ADI_DEBUG 
     AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Advanced Dimmer Driver Starting"));
   #endif  // ADI_DEBUG
 
@@ -66,7 +66,7 @@ bool AdiInit(void) {
     //Settings->bri_power_on = Settings->bri_preset_low = Settings->bri_preset_high = 0;
   }
 
-  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Detect"));
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Detect MCP47x6 DAC"));
   theDAC.begin();
   theDAC.setVReference(MCP47X6_VREF_VDD);
   theDAC.setGain(MCP47X6_GAIN_1X);
@@ -76,8 +76,10 @@ bool AdiInit(void) {
   TasmotaGlobal.devices_present++;
   TasmotaGlobal.light_type += LT_SERIAL1; //ligttype for one channel dimmer, needed to activate module commands
     
-  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "light_type %d"),TasmotaGlobal.light_type);
-   
+  #ifdef ADI_DEBUG
+    AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "light_type %d"),TasmotaGlobal.light_type);
+  #endif
+
   //TasmotaGlobal.light_type += LT_SERIAL;
   //TasmotaGlobal.light_driver = XLGT_11;
 
@@ -481,7 +483,7 @@ void getSensorData(){
         result = DecodeCommand(kADICommands, ADICommand);
       break;
     case FUNC_BUTTON_MULTI_PRESSED:
-         AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "BUTTON_MULTI_PRESSED: idx:%d, cnt: : %d"),XdrvMailbox.index, XdrvMailbox.payload);
+         AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "---Button Pressed: idx:%d, cnt: : %d"),XdrvMailbox.index, XdrvMailbox.payload);
          DimmerButtonPressed();
         //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "pwm_min_perc:%d, pwm_max_perc:%d"),Light.pwm_min, Light.pwm_max);
         //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "brightness:%d"),light_state.getBri());
