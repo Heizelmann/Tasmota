@@ -457,6 +457,7 @@ void ButtonHandler(uint32_t mode) {
               XdrvMailbox.payload = Button.press_counter[button_index];
               if (XdrvCall(FUNC_BUTTON_MULTI_PRESSED)) {
                 // Serviced
+                AddLog(LOG_LEVEL_DEBUG, PSTR("BTN: FUNC_BUTTON_MULTI_PRESSED serviced"));
               } else
 
 #ifdef ROTARY_V1

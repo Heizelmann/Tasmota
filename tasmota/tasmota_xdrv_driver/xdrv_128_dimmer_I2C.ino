@@ -416,15 +416,13 @@ void getSensorData(){
                             nullptr);
                             */
                           if(strcmp(namebuf,"sensors_illuminance_lx")==0){
-                            //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Illuminance = %s "),value);
                             SDimmer.illuminance = value2.getUInt();
-                            AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Illuminance = %d "),SDimmer.illuminance);
+                            //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Illuminance = %d "),SDimmer.illuminance);
                           }
                           else if(strcmp(namebuf,"sensors_temperature_celsius")==0){
-                            //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature %d = %s "),tcnt,value);
                             SDimmer.temperature[tcnt] = value2.getFloat(); 
                             char str_temp[4];
-                            AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature %d = %s "),tcnt,dtostrf(SDimmer.temperature[tcnt],3, 1, str_temp));
+                            //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature %d = %s "),tcnt,dtostrf(SDimmer.temperature[tcnt],3, 1, str_temp));
                              //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "PARSE3 Temperature = %f "),SDimmer.temperature);//!!! does not work, not implemented
                             tcnt++;
                           }
@@ -457,6 +455,14 @@ void getSensorData(){
 
   bool result = false;
   switch (function) {
+    case FUNC_BUTTON_MULTI_PRESSED:
+         AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "---Button Pressed: idx:%d, cnt: : %d"),XdrvMailbox.index, XdrvMailbox.payload);
+         DimmerButtonPressed();
+        //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "pwm_min_perc:%d, pwm_max_perc:%d"),Light.pwm_min, Light.pwm_max);
+        //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "brightness:%d"),light_state.getBri());
+        //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "percent:%d"),light_state.getDimmer(0));
+        result = true;
+       break;
     case FUNC_SET_CHANNELS:
         result = AdiSetChannels();
         break;
@@ -482,14 +488,6 @@ void getSensorData(){
       case FUNC_COMMAND:
         result = DecodeCommand(kADICommands, ADICommand);
       break;
-    case FUNC_BUTTON_MULTI_PRESSED:
-         AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "---Button Pressed: idx:%d, cnt: : %d"),XdrvMailbox.index, XdrvMailbox.payload);
-         DimmerButtonPressed();
-        //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "pwm_min_perc:%d, pwm_max_perc:%d"),Light.pwm_min, Light.pwm_max);
-        //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "brightness:%d"),light_state.getBri());
-        //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "percent:%d"),light_state.getDimmer(0));
-        result = true;
-       break;
     //case FUNC_BUTTON_PRESSED:
         //if (!XdrvMailbox.index && ((PRESSED == XdrvMailbox.payload) && (NOT_PRESSED == Button.last_state[XdrvMailbox.index]))) {
            //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Button pressed:%d : %d"),XdrvMailbox.index, XdrvMailbox.payload);
