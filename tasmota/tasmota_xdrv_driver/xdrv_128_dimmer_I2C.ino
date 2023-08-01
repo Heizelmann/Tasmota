@@ -25,7 +25,7 @@ enum TimerStateType {S_OFF, S_ON, S_DIM, S_DIS };
 boolean isMultiPressed;
 
 struct SDIMMER {
-  bool overheated;
+  bool overheated = false;
   uint8_t currentLevel = 0;
   uint32_t timer1;
   TimerStateType timerState = S_OFF;
@@ -36,9 +36,10 @@ struct SDIMMER {
 struct ADI_DIMMER_SETTINGS {
   uint8_t level1=73; 
   uint8_t level2=39;
-  uint16_t dur1=10000;
-  uint16_t dur2=10000;
-  uint8_t maxTemp;
+  uint16_t dur1=10;
+  uint16_t dur2=10;
+  uint8_t maxTemp = 80;
+  uint8_t coolTemp = 30;
   uint8_t maxLux;
 } AdiSettings;
 
@@ -94,6 +95,8 @@ void AdiGetSettings(void){
   //AdiSettings.dur1 = 0;
   //AdiSettings.dur2 = 0; 
   //AdiSettings.maxTemp = 0; 
+  //AdiSettings.coolTemp = 0; 
+  //AdiSettings.maxLux = 0; 
   if (strstr(SettingsText(SET_SHD_PARAM), ",") != nullptr){
     #ifdef ADI_DEBUG
       AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "Loading params: %s"), SettingsText(SET_SHD_PARAM));
@@ -103,18 +106,20 @@ void AdiGetSettings(void){
     AdiSettings.dur1 =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 3));
     AdiSettings.dur2 =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 4));
     AdiSettings.maxTemp =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 5));
-    AdiSettings.maxLux =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 6));
+    AdiSettings.coolTemp =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 6));
+    AdiSettings.maxLux =   atoi(subStr(parameters, SettingsText(SET_SHD_PARAM), ",", 7));
   }
 }
 
 void AdiSaveSettings(void){
   char parameters[32];
-  snprintf_P(parameters, sizeof(parameters), PSTR("%d,%d,%d,%d,%d,%d"),
+  snprintf_P(parameters, sizeof(parameters), PSTR("%d,%d,%d,%d,%d,%d,%d"),
                AdiSettings.level1,
                AdiSettings.level2,
                AdiSettings.dur1,
                AdiSettings.dur2,
                AdiSettings.maxTemp,
+               AdiSettings.coolTemp,
                AdiSettings.maxLux);
   SettingsUpdateText(SET_SHD_PARAM, parameters);
 }
@@ -173,6 +178,39 @@ void DimmerAnimate(){
 //      theDAC.setOutputLevel(Settings->mcp47x6_state);
 }
 
+// called at regulär time to check dimmer health and emergency off if necessary
+void checkDimmer() {
+  char str_temp[4];
+
+  if( !SDimmer.overheated){
+    if(SDimmer.temperature[0] > AdiSettings.maxTemp){
+      AdiRequestValue(0);
+      SDimmer.overheated = true;
+      SDimmer.timerState = S_DIS;
+      AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "OVERHEAT 1 %d %s %d"),AdiSettings.coolTemp,dtostrf(SDimmer.temperature[0], 3, 2, str_temp),AdiSettings.maxTemp);
+    }
+    if(SDimmer.temperature[1] > AdiSettings.maxTemp){
+      AdiRequestValue(0);
+      SDimmer.overheated = true;
+      SDimmer.timerState = S_DIS;
+      AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "OVERHEAT 2 %d %s %d"),AdiSettings.coolTemp,dtostrf(SDimmer.temperature[1], 3, 2, str_temp),AdiSettings.maxTemp);
+    } 
+  }
+  else { 
+    if(SDimmer.temperature[0] < AdiSettings.coolTemp){
+      SDimmer.timerState = S_OFF;
+      SDimmer.overheated = false;
+      AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "COOLED 1 %d %s %d"),AdiSettings.coolTemp,dtostrf(SDimmer.temperature[0], 3, 2, str_temp),AdiSettings.maxTemp);
+    }
+    if(SDimmer.temperature[1] < AdiSettings.coolTemp){
+        SDimmer.timerState = S_OFF;
+        SDimmer.overheated = false;
+        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "COOLED 2 %d %s %d"),AdiSettings.coolTemp,dtostrf(SDimmer.temperature[1], 3, 2, str_temp),AdiSettings.maxTemp);
+    }
+  }
+}
+
+
 // called on button pressed
 void DimmerTrigger() {
   if(isMultiPressed) {  // Switch on without timer; keeps on until button pressed again
@@ -227,14 +265,15 @@ void DimmerButtonPressed(){
 #define D_CMND_LEVELb "LEVELB"    // Dimmer level for DIM state
 #define D_CMND_DURa  "DURA"       // Duration of ON state
 #define D_CMND_DURb "DURB"        // Duration od DIM state
-#define D_CMND_TEMP_TH "MAXTEMP"  // Temperature threshold for switch off
+#define D_CMND_MTEMP_TH "MAXTEMP"  // Temperature threshold for switch off
+#define D_CMND_CTEMP_TH "COOLTEMP"  // Temperature threshold for switch on again
 #define D_CMND_LUX_TH "MAXLUX"    // Light threshold for motion detect
 
 const char kADICommands[] PROGMEM = D_PRFX_ADI "|" 
-  D_CMND_LEVELa "|" D_CMND_LEVELb "|" D_CMND_DURa "|" D_CMND_DURb "|" D_CMND_TEMP_TH "|" D_CMND_LUX_TH ;
+  D_CMND_LEVELa "|" D_CMND_LEVELb "|" D_CMND_DURa "|" D_CMND_DURb "|" D_CMND_MTEMP_TH "|" D_CMND_CTEMP_TH "|" D_CMND_LUX_TH ;
 
 void (* const ADICommand[])(void) PROGMEM = {
-  &CmndADILevel1, &CmndADILevel2, &CmndADIDur1, &CmndADIDur2, &CmndADIMaxTemp, &CmndADIMaxLux };
+  &CmndADILevel1, &CmndADILevel2, &CmndADIDur1, &CmndADIDur2, &CmndADIMaxTemp, &CmndADICoolTemp, &CmndADIMaxLux };
 
 
 void CmndADILevel1(void) {
@@ -280,7 +319,15 @@ void CmndADIMaxTemp(void) {
    } 
    AdiSaveSettings();
    ResponseCmndIdxNumber(AdiSettings.maxTemp);
+}
 
+void CmndADICoolTemp(void) {
+  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "%s %d %d"), XdrvMailbox.command, XdrvMailbox.index,XdrvMailbox.payload);
+  if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 90)) {
+    AdiSettings.coolTemp = XdrvMailbox.payload;
+   } 
+   AdiSaveSettings();
+   ResponseCmndIdxNumber(AdiSettings.coolTemp);
 }
 
 void CmndADIMaxLux(void) {
@@ -472,15 +519,7 @@ void getSensorData(){
       break;
       case FUNC_EVERY_SECOND:
         getSensorData();
-        if ( TasmotaGlobal.temperature_celsius > AdiSettings.maxTemp ){
-          SDimmer.overheated = true;
-        }
-        else if (TasmotaGlobal.temperature_celsius < AdiSettings.maxTemp - 3){
-          SDimmer.overheated = false;
-        }
-       if (SDimmer.overheated) {
-        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "OVERHEATED"));
-       }
+        checkDimmer();
         break;
      case FUNC_EVERY_50_MSECOND:
         DimmerAnimate();
