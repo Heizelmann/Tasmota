@@ -111,7 +111,9 @@ bool MCP47X6::saveSettings(void) {
  */
 bool MCP47X6::setOutputLevel(uint16_t level) {
   Wire.beginTransmission(devAddr);
+  //https://github.com/uChip/MCP47X6/issues/5#issue-394802925
   Wire.write((config | MCP47X6_CMD_VOLALL) & MCP47X6_PWRDN_MASK);
+  //Wire.write((config | MCP47X6_CMD_VOLDAC) & MCP47X6_PWRDN_MASK);
   Wire.write((uint8_t) ((level>>4) & 0xFF));
   Wire.write((uint8_t) ((level<<4) & 0xF0));
   return (Wire.endTransmission() == 0);
