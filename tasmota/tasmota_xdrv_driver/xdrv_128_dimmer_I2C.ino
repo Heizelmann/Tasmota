@@ -126,8 +126,12 @@ void AdiSaveSettings(void){
 
 // send dimmer desired value [0..100] to external fader engine
 void AdiRequestValue(uint16_t value){
-  AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "RequestValue %d"), value);
+  #ifdef ADI_DEBUG
+    AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "RequestValue %d"), value);
+  #endif  // ADI_DEBUG
   light_controller.changeDimmer(value); 
+   // without lightcontroller use this 
+   //ADISetValue(value*256/100);
   //XdrvMailbox.index = index;
   //XdrvMailbox.payload = dimmer;
   //CmndDimmer();
@@ -197,16 +201,13 @@ void checkDimmer() {
     } 
   }
   else { 
-    if(SDimmer.temperature[0] < AdiSettings.coolTemp){
+   if(SDimmer.temperature[0] < AdiSettings.coolTemp &&
+       SDimmer.temperature[1] < AdiSettings.coolTemp){
       SDimmer.timerState = S_OFF;
       SDimmer.overheated = false;
       AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "COOLED 1 %d %s %d"),AdiSettings.coolTemp,dtostrf(SDimmer.temperature[0], 3, 2, str_temp),AdiSettings.maxTemp);
-    }
-    if(SDimmer.temperature[1] < AdiSettings.coolTemp){
-        SDimmer.timerState = S_OFF;
-        SDimmer.overheated = false;
-        AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "COOLED 2 %d %s %d"),AdiSettings.coolTemp,dtostrf(SDimmer.temperature[1], 3, 2, str_temp),AdiSettings.maxTemp);
-    }
+      AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "COOLED 2 %d %s %d"),AdiSettings.coolTemp,dtostrf(SDimmer.temperature[1], 3, 2, str_temp),AdiSettings.maxTemp);  
+   }
   }
 }
 
