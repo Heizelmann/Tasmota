@@ -151,7 +151,7 @@ bool AdiSetChannels(void){
 // send brightness value to DAC, brightness 0..255 --> output 0..4095
 void ADISetValue(uint16_t brightness){
   #ifdef ADI_DEBUG
-    AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "SetValue %d"), brightness*16); //TODO replace 16 by bitresolution of DAC, currently fixed to 12 bit
+    AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "SetValue %d"), brightness); //TODO replace 16 by bitresolution of DAC, currently fixed to 12 bit
   #endif  // ADI_DEBUG
   theDAC.setOutputLevel((uint16_t)(brightness*16));
 }
@@ -217,7 +217,7 @@ void DimmerTrigger() {
   if(isMultiPressed) {  // Switch on without timer; keeps on until button pressed again
     SDimmer.timerState = S_DIS;
     AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "FixOn"));
-    AdiRequestValue(100);
+    AdiRequestValue(90);
     }
   else{
     switch (SDimmer.timerState) {
@@ -244,6 +244,12 @@ void DimmerTrigger() {
 
 void DimmerButtonPressed(){
   isMultiPressed = XdrvMailbox.payload > 1;        
+  DimmerTrigger();
+ }
+
+void PIRTriggered(){
+  isMultiPressed = false;
+  SDimmer.timerState = S_OFF;        
   DimmerTrigger();
  }
 
@@ -500,6 +506,9 @@ void getSensorData(){
   
   bool Xdrv128(uint32_t function) {
   if (!I2cEnabled(XI2C_128)) { return false; }
+       uint32_t akey ;
+        uint32_t adevice ;
+        uint32_t astate ;
 
   bool result = false;
   switch (function) {
@@ -524,6 +533,23 @@ void getSensorData(){
         break;
      case FUNC_EVERY_50_MSECOND:
         DimmerAnimate();
+        break;
+      case FUNC_ANY_KEY:
+        akey = (XdrvMailbox.payload >> 16) & 0xFF;
+        adevice = XdrvMailbox.payload & 0xFF;
+        astate = (XdrvMailbox.payload >> 8) & 0xFF;
+// key 0 = button_topic
+// key 1 = switch_topic
+// state 0 = off
+// state 1 = on
+// state 2 = toggle
+// state 3 = hold
+// state 9 = clear retain flag
+        //AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "***FUNC_ANY_KEY*****: idx:%d, key %d, device %d, state %d"),XdrvMailbox.index, akey, adevice, astate);
+        if (astate == 1) {
+           AddLog(LOG_LEVEL_INFO, PSTR(ADI_LOGNAME "*** PIR Triggered "),1);
+           PIRTriggered();
+        }
         break;
       case FUNC_COMMAND:
         result = DecodeCommand(kADICommands, ADICommand);
