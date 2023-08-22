@@ -249,8 +249,10 @@ void DimmerButtonPressed(){
 
 void PIRTriggered(){
   isMultiPressed = false;
-  SDimmer.timerState = S_OFF;        
-  DimmerTrigger();
+  if( SDimmer.illuminance < AdiSettings.maxLux  && SDimmer.timerState != S_DIS){
+     SDimmer.timerState = S_OFF;        
+     DimmerTrigger();
+  }
  }
 
 
@@ -535,8 +537,8 @@ void getSensorData(){
         DimmerAnimate();
         break;
       case FUNC_ANY_KEY:
-        akey = (XdrvMailbox.payload >> 16) & 0xFF;
-        adevice = XdrvMailbox.payload & 0xFF;
+        //akey = (XdrvMailbox.payload >> 16) & 0xFF;
+        //adevice = XdrvMailbox.payload & 0xFF;
         astate = (XdrvMailbox.payload >> 8) & 0xFF;
 // key 0 = button_topic
 // key 1 = switch_topic
